@@ -51,6 +51,7 @@ projet-spark-bigdata/
 └── README.md
 
 
+
 ## Concepts PySpark implémentés
 - SparkSession avec configuration optimisée
 - Schema Enforcement (schéma strict)
