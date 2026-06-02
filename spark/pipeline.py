@@ -1,9 +1,32 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col, window, lit, current_timestamp
+from pyspark.sql.functions import from_json, col, window, lit
 from pyspark.sql.types import (
     StructType, StructField, StringType, DoubleType, TimestampType
 )
+import json
 import os
+
+# ─────────────────────────────────────────
+# Union-Find — équivalent connectedComponents()
+# ─────────────────────────────────────────
+class UnionFind:
+    def __init__(self):
+        self.parent = {}
+
+    def find(self, x):
+        if x not in self.parent:
+            self.parent[x] = x
+        if self.parent[x] != x:
+            self.parent[x] = self.find(self.parent[x])
+        return self.parent[x]
+
+    def union(self, x, y):
+        rx, ry = self.find(x), self.find(y)
+        if rx != ry:
+            self.parent[rx] = ry
+
+    def get_components(self, nodes):
+        return {node: self.find(node) for node in nodes}
 
 # ─────────────────────────────────────────
 # 1. SparkSession
@@ -53,83 +76,101 @@ df_windowed = df_parsed \
     ).count()
 
 # ─────────────────────────────────────────
-# 5. Construction du graphe
-#    Vertices : id unique + type + label
-#    Edges    : src -> dst + type relation
+# 5. État global du graphe
 # ─────────────────────────────────────────
+VERTICES_PATH = "data/graph/vertices.json"
+EDGES_PATH    = "data/graph/edges.json"
+
+def load_state():
+    vertices = {}
+    edges    = set()
+
+    if os.path.exists(VERTICES_PATH) and os.path.getsize(VERTICES_PATH) > 0:
+        with open(VERTICES_PATH) as f:
+            for v in json.load(f):
+                vertices[v["id"]] = v
+
+    if os.path.exists(EDGES_PATH) and os.path.getsize(EDGES_PATH) > 0:
+        with open(EDGES_PATH) as f:
+            for e in json.load(f):
+                edges.add((e["src"], e["dst"], e["relationship"]))
+
+    return vertices, edges
+
+def save_state(vertices: dict, edges: set):
+    os.makedirs("data/graph", exist_ok=True)
+
+    with open(VERTICES_PATH, "w") as f:
+        json.dump(list(vertices.values()), f, indent=2)
+
+    with open(EDGES_PATH, "w") as f:
+        json.dump([
+            {"src": s, "dst": d, "relationship": r}
+            for s, d, r in edges
+        ], f, indent=2)
+
 def build_graph(batch_df, batch_id):
     if batch_df.count() == 0:
         return
 
-    # --- VERTICES ---
-    # Utilisateurs
-    users = batch_df.select(
-        col("user_id").alias("id"),
-        lit("user").alias("type"),
-        col("user_city").alias("label")
-    )
-    # Vendeurs
-    sellers = batch_df.select(
-        col("seller_id").alias("id"),
-        lit("seller").alias("type"),
-        col("seller_id").alias("label")
-    )
-    # Produits
-    products = batch_df.select(
-        col("product_id").alias("id"),
-        lit("product").alias("type"),
-        col("product_cat").alias("label")
-    )
+    vertices, edges = load_state()
+    rows = batch_df.collect()
 
-    vertices = users.union(sellers).union(products).distinct()
+    for row in rows:
+        # Vertices
+        if row.user_id not in vertices:
+            vertices[row.user_id] = {
+                "id": row.user_id, "type": "user",
+                "label": row.user_city,
+                "out_degree": 0, "in_degree": 0
+            }
+        if row.seller_id not in vertices:
+            vertices[row.seller_id] = {
+                "id": row.seller_id, "type": "seller",
+                "label": row.seller_id,
+                "out_degree": 0, "in_degree": 0
+            }
+        if row.product_id not in vertices:
+            vertices[row.product_id] = {
+                "id": row.product_id, "type": "product",
+                "label": row.product_cat,
+                "out_degree": 0, "in_degree": 0
+            }
 
-    # --- EDGES ---
-    # User → Product  (action directe)
-    edges_user_product = batch_df.select(
-        col("user_id").alias("src"),
-        col("product_id").alias("dst"),
-        col("action_type").alias("relationship"),
-        col("price")
-    )
-    # Seller → Product  (propose)
-    edges_seller_product = batch_df.select(
-        col("seller_id").alias("src"),
-        col("product_id").alias("dst"),
-        lit("PROPOSE").alias("relationship"),
-        col("price")
-    )
+        # Edges
+        edge_up = (row.user_id, row.product_id, row.action_type)
+        if edge_up not in edges:
+            edges.add(edge_up)
+            vertices[row.user_id]["out_degree"]   += 1
+            vertices[row.product_id]["in_degree"] += 1
 
-    edges = edges_user_product.union(
-        edges_seller_product.drop("price").withColumn("price", lit(0.0))
-    ).distinct()
+        edge_sp = (row.seller_id, row.product_id, "PROPOSE")
+        if edge_sp not in edges:
+            edges.add(edge_sp)
+            vertices[row.seller_id]["out_degree"]  += 1
+            vertices[row.product_id]["in_degree"]  += 1
 
-    # --- Calcul des degrés (centralité) ---
-    # Degré = nombre de connexions d'un nœud
-    out_degrees = edges.groupBy("src").count().withColumnRenamed("count", "out_degree")
-    in_degrees  = edges.groupBy("dst").count().withColumnRenamed("count", "in_degree")
+    # ── Composantes connexes ──
+    uf = UnionFind()
+    for src, dst, _ in edges:
+        uf.union(src, dst)
 
-    vertices_with_degrees = vertices \
-        .join(out_degrees, vertices.id == out_degrees.src, "left") \
-        .join(in_degrees,  vertices.id == in_degrees.dst,  "left") \
-        .drop("src", "dst") \
-        .fillna(0)
+    components  = uf.get_components(list(vertices.keys()))
+    nb_components = len(set(components.values()))
 
-    # --- Sauvegarde pour le dashboard ---
-    os.makedirs("data/graph", exist_ok=True)
+    for node_id, comp_id in components.items():
+        if node_id in vertices:
+            vertices[node_id]["component_id"] = comp_id
 
-    vertices_with_degrees.toPandas().to_json(
-        "data/graph/vertices.json", orient="records", indent=2
-    )
-    edges.toPandas().to_json(
-        "data/graph/edges.json", orient="records", indent=2
-    )
+    save_state(vertices, edges)
 
-    print(f"[BATCH {batch_id}] Vertices: {vertices_with_degrees.count()} | Edges: {edges.count()}")
+    print(f"[BATCH {batch_id}] "
+          f"Vertices: {len(vertices)} | "
+          f"Edges: {len(edges)} | "
+          f"Composantes connexes: {nb_components}")
 
 # ─────────────────────────────────────────
-# 6. Deux queries en parallèle :
-#    - console : affiche les stats fenêtrées
-#    - foreachBatch : construit le graphe
+# 6. Deux queries en parallèle
 # ─────────────────────────────────────────
 query_console = df_windowed.writeStream \
     .outputMode("update") \

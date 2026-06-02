@@ -132,10 +132,15 @@ def update_graph(n):
             "classes": e["relationship"]
         })
 
+    # Compter les composantes connexes
+    components = set(v.get("component_id", v["id"]) for v in vertices)
+    nb_components = len(components)
+
     stats = f"🔵 {sum(1 for v in vertices if v['type']=='user')} utilisateurs | "\
             f"🔴 {sum(1 for v in vertices if v['type']=='seller')} vendeurs | "\
             f"🟢 {sum(1 for v in vertices if v['type']=='product')} produits | "\
-            f"🔗 {len(edges)} connexions"
+            f"🔗 {len(edges)} connexions | "\
+            f"🔀 {nb_components} composantes connexes"
 
     return elements, stats
 

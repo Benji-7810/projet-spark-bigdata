@@ -43,7 +43,7 @@ try:
         msg = json.dumps(event) + "\n"
         conn.sendall(msg.encode("utf-8"))
         print(f"[SENT] {event['action_type']} | {event['user_id']} -> {event['product_id']}")
-        time.sleep(0.5)
+        time.sleep(3.0)
 except (BrokenPipeError, ConnectionResetError):
     print("[PRODUCER] Spark déconnecté.")
 finally:
