@@ -37,19 +37,17 @@ Ouvrir : http://localhost:8050
 
 ## Structure du projet
 
-projet-spark-bigdata/
-├── generator/
-│   └── producer.py      # Simulateur de flux JSON infini
-├── spark/
-│   └── pipeline.py      # PySpark Structured Streaming + Graphe
-├── dashboard/
-│   └── app.py           # Dashboard Dash + Cytoscape
-├── data/
-│   └── graph/           # Fichiers JSON générés par Spark
-│       ├── vertices.json
-│       └── edges.json
-└── README.md
-
+├── dashboard
+│   └── app.py
+├── data
+│   └── graph
+│       ├── edges.json
+│       └── vertices.json
+├── generator
+│   └── producer.py
+├── README.md
+└── spark
+    └── pipeline.py
 
 
 ## Concepts PySpark implémentés
