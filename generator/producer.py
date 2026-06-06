@@ -5,9 +5,9 @@ import time
 from datetime import datetime, timezone
 
 # --- Données simulées ---
-USERS = [f"usr_{i:04d}" for i in range(1, 21)]
-SELLERS = [f"sel_{i:04d}" for i in range(1, 11)]
-PRODUCTS = [f"prod_{i:04d}" for i in range(1, 31)]
+USERS = [f"usr_{i:04d}" for i in range(1, 6)]
+SELLERS = [f"sel_{i:04d}" for i in range(1, 4)]
+PRODUCTS = [f"prod_{i:04d}" for i in range(1, 9)]
 CITIES = ["Paris", "Lyon", "Marseille", "Toulouse", "Bordeaux", "Nantes", "Lille"]
 CATEGORIES = ["Véhicules", "Électronique", "Immobilier", "Mode", "Maison", "Sports", "Loisirs"]
 ACTIONS = ["AIME", "VOUT", "ACHAT"]
@@ -43,7 +43,7 @@ try:
         msg = json.dumps(event) + "\n"
         conn.sendall(msg.encode("utf-8"))
         print(f"[SENT] {event['action_type']} | {event['user_id']} -> {event['product_id']}")
-        time.sleep(3.0)
+        time.sleep(6.0)
 except (BrokenPipeError, ConnectionResetError):
     print("[PRODUCER] Spark déconnecté.")
 finally:

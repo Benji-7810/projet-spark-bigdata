@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col, window, lit
+from pyspark.sql.functions import from_json, col, window
 from pyspark.sql.types import (
     StructType, StructField, StringType, DoubleType, TimestampType
 )
@@ -81,6 +81,12 @@ df_windowed = df_parsed \
 VERTICES_PATH = "data/graph/vertices.json"
 EDGES_PATH    = "data/graph/edges.json"
 
+os.makedirs("data/graph", exist_ok=True)
+with open(VERTICES_PATH, "w") as f:
+    json.dump([], f)
+with open(EDGES_PATH, "w") as f:
+    json.dump([], f)
+
 def load_state():
     vertices = {}
     edges    = set()
@@ -110,11 +116,11 @@ def save_state(vertices: dict, edges: set):
         ], f, indent=2)
 
 def build_graph(batch_df, batch_id):
-    if batch_df.count() == 0:
+    rows = batch_df.collect()
+    if not rows:
         return
 
     vertices, edges = load_state()
-    rows = batch_df.collect()
 
     for row in rows:
         # Vertices

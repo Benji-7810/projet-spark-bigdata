@@ -2,22 +2,12 @@ import json
 import os
 import dash
 from dash import html, dcc
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import dash_cytoscape as cyto
 
-# Charger le layout Cytoscape
 cyto.load_extra_layouts()
 
 app = dash.Dash(__name__)
-
-# ─────────────────────────────────────────
-# Couleurs par type de nœud
-# ─────────────────────────────────────────
-COLORS = {
-    "user":    "#4A90D9",  # bleu
-    "seller":  "#E74C3C",  # rouge
-    "product": "#2ECC71",  # vert
-}
 
 app.layout = html.Div([
     html.H1("LeBonCoin — Graphe de Connexions",
@@ -27,40 +17,53 @@ app.layout = html.Div([
     html.Div([
         html.Span("● Utilisateur", style={"color": "#4A90D9", "marginRight": "20px"}),
         html.Span("● Vendeur",     style={"color": "#E74C3C", "marginRight": "20px"}),
-        html.Span("● Produit",     style={"color": "#2ECC71"}),
-    ], style={"textAlign": "center", "fontSize": "16px", "marginBottom": "10px"}),
+        html.Span("● Produit",     style={"color": "#2ECC71", "marginRight": "30px"}),
+        html.Span("— AIME",    style={"color": "#F39C12", "marginRight": "15px"}),
+        html.Span("— VOUT",    style={"color": "#9B59B6", "marginRight": "15px"}),
+        html.Span("— ACHAT",   style={"color": "#E74C3C", "marginRight": "15px"}),
+        html.Span("— PROPOSE", style={"color": "#95A5A6"}),
+    ], style={"textAlign": "center", "fontSize": "13px", "marginBottom": "10px"}),
+
+    # Bouton pause
+    html.Div([
+        html.Button("⏸ Pause", id="btn-pause", n_clicks=0, style={
+            "padding": "8px 20px",
+            "fontSize": "14px",
+            "cursor": "pointer",
+            "borderRadius": "6px",
+            "border": "none",
+            "backgroundColor": "#E74C3C",
+            "color": "white",
+            "fontWeight": "bold",
+        }),
+    ], style={"textAlign": "center", "marginBottom": "10px"}),
 
     # Graphe Cytoscape
     cyto.Cytoscape(
         id="graph",
-        layout={"name": "cose"},  # layout automatique
+        layout={"name": "cose"},
         style={"width": "100%", "height": "600px", "border": "1px solid #ccc"},
         elements=[],
         stylesheet=[
-            # Style des nœuds
             {
                 "selector": "node",
                 "style": {
                     "label": "data(label)",
-                    "font-size": "10px",
+                    "font-size": "7px",
                     "text-valign": "center",
                     "color": "white",
-                    "text-outline-width": 2,
-                    "text-outline-color": "#555",
+                    "text-outline-width": 1,
+                    "text-outline-color": "#333",
                     "width": "data(size)",
                     "height": "data(size)",
                 }
             },
-            # Couleur par type
             {"selector": ".user",    "style": {"background-color": "#4A90D9"}},
             {"selector": ".seller",  "style": {"background-color": "#E74C3C"}},
             {"selector": ".product", "style": {"background-color": "#2ECC71"}},
-            # Style des arêtes
             {
                 "selector": "edge",
                 "style": {
-                    "label": "data(relationship)",
-                    "font-size": "8px",
                     "curve-style": "bezier",
                     "target-arrow-shape": "triangle",
                     "arrow-scale": 1.5,
@@ -68,7 +71,6 @@ app.layout = html.Div([
                     "target-arrow-color": "#aaa",
                 }
             },
-            # Couleur arête par type
             {"selector": ".AIME",    "style": {"line-color": "#F39C12", "target-arrow-color": "#F39C12"}},
             {"selector": ".VOUT",    "style": {"line-color": "#9B59B6", "target-arrow-color": "#9B59B6"}},
             {"selector": ".ACHAT",   "style": {"line-color": "#E74C3C", "target-arrow-color": "#E74C3C"}},
@@ -81,8 +83,38 @@ app.layout = html.Div([
              style={"textAlign": "center", "marginTop": "10px", "fontFamily": "Arial"}),
 
     # Rafraîchissement toutes les 5 secondes
-    dcc.Interval(id="interval", interval=5000, n_intervals=0),
+    dcc.Interval(id="interval", interval=5000, n_intervals=0, disabled=False),
 ])
+
+# ─────────────────────────────────────────
+# Callback : bouton pause/reprendre
+# ─────────────────────────────────────────
+@app.callback(
+    Output("interval", "disabled"),
+    Output("btn-pause", "children"),
+    Output("btn-pause", "style"),
+    Input("btn-pause", "n_clicks"),
+    State("interval", "disabled"),
+)
+def toggle_pause(n_clicks, is_disabled):
+    if n_clicks == 0:
+        return False, "⏸ Pause", _btn_style("#E74C3C")
+    if is_disabled:
+        return False, "⏸ Pause", _btn_style("#E74C3C")
+    else:
+        return True, "▶ Reprendre", _btn_style("#2ECC71")
+
+def _btn_style(color):
+    return {
+        "padding": "8px 20px",
+        "fontSize": "14px",
+        "cursor": "pointer",
+        "borderRadius": "6px",
+        "border": "none",
+        "backgroundColor": color,
+        "color": "white",
+        "fontWeight": "bold",
+    }
 
 # ─────────────────────────────────────────
 # Callback : relit les JSON et met à jour le graphe
@@ -92,7 +124,7 @@ app.layout = html.Div([
     Output("stats", "children"),
     Input("interval", "n_intervals")
 )
-def update_graph(n):
+def update_graph(_):
     vertices_path = "data/graph/vertices.json"
     edges_path    = "data/graph/edges.json"
 
@@ -106,14 +138,13 @@ def update_graph(n):
 
     elements = []
 
-    # Nœuds
     for v in vertices:
         degree = v.get("out_degree", 0) + v.get("in_degree", 0)
-        size   = max(20, min(60, 15 + degree * 3))  # taille proportionnelle au degré
+        size   = max(20, min(60, 15 + degree * 3))
         elements.append({
             "data": {
                 "id":           v["id"],
-                "label":        v["id"],
+                "label":        v.get("label", v["id"]),
                 "type":         v["type"],
                 "size":         size,
                 "relationship": "",
@@ -121,10 +152,10 @@ def update_graph(n):
             "classes": v["type"]
         })
 
-    # Arêtes
     for e in edges:
         elements.append({
             "data": {
+                "id":           f"{e['src']}__{e['dst']}__{e['relationship']}",
                 "source":       e["src"],
                 "target":       e["dst"],
                 "relationship": e["relationship"],
@@ -132,8 +163,7 @@ def update_graph(n):
             "classes": e["relationship"]
         })
 
-    # Compter les composantes connexes
-    components = set(v.get("component_id", v["id"]) for v in vertices)
+    components    = set(v.get("component_id", v["id"]) for v in vertices)
     nb_components = len(components)
 
     stats = f"🔵 {sum(1 for v in vertices if v['type']=='user')} utilisateurs | "\
