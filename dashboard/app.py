@@ -139,14 +139,15 @@ def update_graph(_):
     elements = []
 
     for v in vertices:
-        degree = v.get("out_degree", 0) + v.get("in_degree", 0)
-        size   = max(20, min(60, 15 + degree * 3))
+        pagerank = v.get("pagerank", 0)
+        size     = max(20, min(70, 20 + pagerank * 30))
         elements.append({
             "data": {
                 "id":           v["id"],
                 "label":        v.get("label", v["id"]),
                 "type":         v["type"],
                 "size":         size,
+                "pagerank":     pagerank,
                 "relationship": "",
             },
             "classes": v["type"]
@@ -166,11 +167,18 @@ def update_graph(_):
     components    = set(v.get("component_id", v["id"]) for v in vertices)
     nb_components = len(components)
 
+    top_pr = sorted(vertices, key=lambda v: v.get("pagerank", 0), reverse=True)[:3]
+    top_str = " | ".join(
+        f"{v.get('label', v['id'])} ({v.get('pagerank', 0):.2f})"
+        for v in top_pr
+    )
+
     stats = f"🔵 {sum(1 for v in vertices if v['type']=='user')} utilisateurs | "\
             f"🔴 {sum(1 for v in vertices if v['type']=='seller')} vendeurs | "\
             f"🟢 {sum(1 for v in vertices if v['type']=='product')} produits | "\
             f"🔗 {len(edges)} connexions | "\
-            f"🔀 {nb_components} composantes connexes"
+            f"🔀 {nb_components} composantes | "\
+            f"⭐ Top PageRank : {top_str}"
 
     return elements, stats
 

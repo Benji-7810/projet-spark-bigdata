@@ -3,40 +3,23 @@ from pyspark.sql.functions import from_json, col, window
 from pyspark.sql.types import (
     StructType, StructField, StringType, DoubleType, TimestampType
 )
+from graphframes import GraphFrame
 import json
 import os
 
 # ─────────────────────────────────────────
-# Union-Find — équivalent connectedComponents()
-# ─────────────────────────────────────────
-class UnionFind:
-    def __init__(self):
-        self.parent = {}
-
-    def find(self, x):
-        if x not in self.parent:
-            self.parent[x] = x
-        if self.parent[x] != x:
-            self.parent[x] = self.find(self.parent[x])
-        return self.parent[x]
-
-    def union(self, x, y):
-        rx, ry = self.find(x), self.find(y)
-        if rx != ry:
-            self.parent[rx] = ry
-
-    def get_components(self, nodes):
-        return {node: self.find(node) for node in nodes}
-
-# ─────────────────────────────────────────
-# 1. SparkSession
+# 1. SparkSession  (GraphFrames via spark.jars.packages)
 # ─────────────────────────────────────────
 spark = SparkSession.builder \
     .appName("LeBonCoin-Streaming") \
+    .config("spark.jars.packages", "graphframes:graphframes:0.8.4-spark3.5-s_2.12") \
+    .config("spark.driver.memory", "2g") \
     .config("spark.sql.shuffle.partitions", "4") \
+    .config("spark.sql.adaptive.enabled", "false") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
+spark.sparkContext.setCheckpointDir("/tmp/spark-checkpoints")
 
 # ─────────────────────────────────────────
 # 2. Schéma strict
@@ -104,8 +87,6 @@ def load_state():
     return vertices, edges
 
 def save_state(vertices: dict, edges: set):
-    os.makedirs("data/graph", exist_ok=True)
-
     with open(VERTICES_PATH, "w") as f:
         json.dump(list(vertices.values()), f, indent=2)
 
@@ -123,7 +104,6 @@ def build_graph(batch_df, batch_id):
     vertices, edges = load_state()
 
     for row in rows:
-        # Vertices
         if row.user_id not in vertices:
             vertices[row.user_id] = {
                 "id": row.user_id, "type": "user",
@@ -143,7 +123,6 @@ def build_graph(batch_df, batch_id):
                 "out_degree": 0, "in_degree": 0
             }
 
-        # Edges
         edge_up = (row.user_id, row.product_id, row.action_type)
         if edge_up not in edges:
             edges.add(edge_up)
@@ -156,24 +135,43 @@ def build_graph(batch_df, batch_id):
             vertices[row.seller_id]["out_degree"]  += 1
             vertices[row.product_id]["in_degree"]  += 1
 
-    # ── Composantes connexes ──
-    uf = UnionFind()
-    for src, dst, _ in edges:
-        uf.union(src, dst)
+    # ── Composantes connexes via GraphFrames ──
+    v_df = spark.createDataFrame(
+        [(v["id"], v["type"], v.get("label", "")) for v in vertices.values()],
+        ["id", "type", "label"]
+    )
+    e_df = spark.createDataFrame(
+        [(s, d, r) for s, d, r in edges],
+        ["src", "dst", "relationship"]
+    )
 
-    components  = uf.get_components(list(vertices.keys()))
-    nb_components = len(set(components.values()))
+    g = GraphFrame(v_df, e_df)
 
-    for node_id, comp_id in components.items():
-        if node_id in vertices:
-            vertices[node_id]["component_id"] = comp_id
+    # Composantes connexes
+    components = g.connectedComponents()
+    for row in components.collect():
+        if row["id"] in vertices:
+            vertices[row["id"]]["component_id"] = str(row["component"])
+
+    nb_components = len(set(
+        v.get("component_id", v["id"]) for v in vertices.values()
+    ))
+
+    # PageRank
+    pr = g.pageRank(resetProbability=0.15, maxIter=3)
+    for row in pr.vertices.collect():
+        if row["id"] in vertices:
+            vertices[row["id"]]["pagerank"] = round(float(row["pagerank"]), 3)
+
+    top_pr = sorted(vertices.values(), key=lambda v: v.get("pagerank", 0), reverse=True)[:3]
 
     save_state(vertices, edges)
 
     print(f"[BATCH {batch_id}] "
           f"Vertices: {len(vertices)} | "
           f"Edges: {len(edges)} | "
-          f"Composantes connexes: {nb_components}")
+          f"Composantes: {nb_components} | "
+          f"Top PageRank: {[(v['id'], v.get('pagerank',0)) for v in top_pr]}")
 
 # ─────────────────────────────────────────
 # 6. Deux queries en parallèle
