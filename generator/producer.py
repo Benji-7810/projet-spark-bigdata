@@ -68,7 +68,7 @@ try:
 
         print(f"[SENT] {event['action_type']} | {event['user_id']} -> {event['product_id']}")
 
-        time.sleep(6.0)  # 1 événement toutes les 6 secondes
+        time.sleep(1.0)  # 1 événement par seconde → flux dense, windowing significatif
 
 except (BrokenPipeError, ConnectionResetError):
     # Spark s'est déconnecté (pipeline arrêté) → on ferme proprement
