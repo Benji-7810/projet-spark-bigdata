@@ -1,3 +1,137 @@
 [
-  
+  {
+    "id": "usr_0001",
+    "type": "user",
+    "label": "Marseille",
+    "out_degree": 2,
+    "in_degree": 0,
+    "pagerank": 0.688,
+    "component_id": "0"
+  },
+  {
+    "id": "sel_0002",
+    "type": "seller",
+    "label": "sel_0002",
+    "out_degree": 4,
+    "in_degree": 0,
+    "pagerank": 0.688,
+    "component_id": "0"
+  },
+  {
+    "id": "prod_0003",
+    "type": "product",
+    "label": "V\u00e9hicules",
+    "out_degree": 0,
+    "in_degree": 4,
+    "pagerank": 1.419,
+    "component_id": "0"
+  },
+  {
+    "id": "usr_0002",
+    "type": "user",
+    "label": "Bordeaux",
+    "out_degree": 2,
+    "in_degree": 0,
+    "pagerank": 0.688,
+    "component_id": "0"
+  },
+  {
+    "id": "sel_0001",
+    "type": "seller",
+    "label": "sel_0001",
+    "out_degree": 4,
+    "in_degree": 0,
+    "pagerank": 0.688,
+    "component_id": "0"
+  },
+  {
+    "id": "prod_0005",
+    "type": "product",
+    "label": "Loisirs",
+    "out_degree": 0,
+    "in_degree": 2,
+    "pagerank": 1.127,
+    "component_id": "0"
+  },
+  {
+    "id": "usr_0004",
+    "type": "user",
+    "label": "Lille",
+    "out_degree": 4,
+    "in_degree": 0,
+    "pagerank": 0.688,
+    "component_id": "0"
+  },
+  {
+    "id": "sel_0003",
+    "type": "seller",
+    "label": "sel_0003",
+    "out_degree": 2,
+    "in_degree": 0,
+    "pagerank": 0.688,
+    "component_id": "0"
+  },
+  {
+    "id": "prod_0002",
+    "type": "product",
+    "label": "Loisirs",
+    "out_degree": 0,
+    "in_degree": 2,
+    "pagerank": 1.127,
+    "component_id": "0"
+  },
+  {
+    "id": "prod_0008",
+    "type": "product",
+    "label": "Loisirs",
+    "out_degree": 0,
+    "in_degree": 4,
+    "pagerank": 1.565,
+    "component_id": "0"
+  },
+  {
+    "id": "prod_0001",
+    "type": "product",
+    "label": "Loisirs",
+    "out_degree": 0,
+    "in_degree": 2,
+    "pagerank": 1.127,
+    "component_id": "0"
+  },
+  {
+    "id": "usr_0003",
+    "type": "user",
+    "label": "Marseille",
+    "out_degree": 2,
+    "in_degree": 0,
+    "pagerank": 0.688,
+    "component_id": "0"
+  },
+  {
+    "id": "prod_0007",
+    "type": "product",
+    "label": "Loisirs",
+    "out_degree": 0,
+    "in_degree": 5,
+    "pagerank": 1.712,
+    "component_id": "0"
+  },
+  {
+    "id": "usr_0005",
+    "type": "user",
+    "label": "Paris",
+    "out_degree": 1,
+    "in_degree": 0,
+    "pagerank": 0.688,
+    "component_id": "0"
+  },
+  {
+    "id": "prod_0006",
+    "type": "product",
+    "label": "Sports",
+    "out_degree": 0,
+    "in_degree": 2,
+    "pagerank": 1.419,
+    "component_id": "0"
+  }
 ]
