@@ -61,10 +61,11 @@ df_windowed = df_parsed \
 # ─────────────────────────────────────────
 # 5. État global du graphe
 # ─────────────────────────────────────────
-VERTICES_PATH = "data/graph/vertices.json"
-EDGES_PATH    = "data/graph/edges.json"
+_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+VERTICES_PATH = os.path.join(_BASE, "data", "graph", "vertices.json")
+EDGES_PATH    = os.path.join(_BASE, "data", "graph", "edges.json")
 
-os.makedirs("data/graph", exist_ok=True)
+os.makedirs(os.path.join(_BASE, "data", "graph"), exist_ok=True)
 with open(VERTICES_PATH, "w") as f:
     json.dump([], f)
 with open(EDGES_PATH, "w") as f:

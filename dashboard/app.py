@@ -159,8 +159,9 @@ def _btn_style(color):
     Input("interval", "n_intervals")  # se déclenche à chaque tick du timer
 )
 def update_graph(_):
-    vertices_path = "data/graph/vertices.json"
-    edges_path    = "data/graph/edges.json"
+    _base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    vertices_path = os.path.join(_base, "data", "graph", "vertices.json")
+    edges_path    = os.path.join(_base, "data", "graph", "edges.json")
 
     # Si les fichiers n'existent pas encore, on attend que Spark démarre
     if not os.path.exists(vertices_path) or not os.path.exists(edges_path):
