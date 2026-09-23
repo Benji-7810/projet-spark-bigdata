@@ -4,14 +4,6 @@
 
 ---
 
-## Equipe 3
-
-- Benjamin BEY
-- Mohamed OUHAB
-- Noé FRANÇOIS
-
----
-
 ## Architecture
 
 ```
